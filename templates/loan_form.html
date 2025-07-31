@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Apply for Loan</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script>
+    function showKycRequirements() {
+      const loanTypeId = document.getElementById('loan_type').value;
+      const kycSections = document.querySelectorAll('.kyc-section');
+      kycSections.forEach(sec => sec.style.display = 'none');
+
+      const selected = document.querySelectorAll(`.kyc-${loanTypeId}`);
+      selected.forEach(sec => sec.style.display = 'block');
+    }
+  </script>
+</head>
+<body>
+  <h2>Loan Application - {{ bank.name }}</h2>
+
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('submit_loan_application', bank_id=bank.id) }}">
+    <label>Your Full Name:</label>
+    <input type="text" name="name" required><br>
+
+    <label>Email:</label>
+    <input type="email" name="email" required><br>
+
+    <label>Phone:</label>
+    <input type="text" name="phone" required><br>
+
+    <label>Are you an existing account holder?</label>
+    <select name="has_account" required onchange="document.getElementById('account_number').style.display = this.value === 'yes' ? 'block' : 'none';">
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select><br>
+
+    <div id="account_number" style="display:none;">
+      <label>Bank Account Number:</label>
+      <input type="text" name="account_number"><br>
+    </div>
+
+    <label>Select Loan Type:</label>
+    <select name="loan_type_id" id="loan_type" onchange="showKycRequirements()" required>
+      <option value="">-- Select --</option>
+      {% for loan in loan_types %}
+        <option value="{{ loan.id }}">{{ loan.name }} (₹{{ loan.min_amount }}–₹{{ loan.max_amount }})</option>
+      {% endfor %}
+    </select><br>
+
+    <h3>KYC Document Upload</h3>
+    {% for loan in loan_types %}
+      {% for kyc in loan.kyc_requirements %}
+        <div class="kyc-section kyc-{{ loan.id }}" style="display:none;">
+          <label>{{ kyc.document_name }} {% if kyc.required %}*{% endif %}</label>
+          <input type="file" name="kyc_{{ loan.id }}_{{ loop.index }}" {% if kyc.required %}required{% endif %}><br>
+          <input type="hidden" name="kyc_names_{{ loan.id }}[]" value="{{ kyc.document_name }}">
+        </div>
+      {% endfor %}
+    {% endfor %}
+
+    <label>Requested Loan Amount:</label>
+    <input type="number" name="amount_requested" min="1000" required><br><br>
+
+    <button type="submit">Submit Application</button>
+  </form>
+</body>
+</html>
