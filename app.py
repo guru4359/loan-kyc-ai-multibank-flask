@@ -1,15 +1,59 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.utils import secure_filename
-from models import db, Bank, LoanType, KycRequirement, Application, KycDocumentUpload
+import os
+
+from models import db, Bank, User, LoanType, KycRequirement, Application, KycDocumentUpload
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['SECRET_KEY'] = 'your-secret-key'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///loan_kyc.db'
-db.init_app(app)
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.secret_key = "your-secret-key"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///loan_kyc.db"  # Use PostgreSQL on Render
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["UPLOAD_FOLDER"] = "uploads"
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
+db.init_app(app)
+
+# ------------------------
+# Admin Login & Logout
+# ------------------------
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            session['user_id'] = user.id
+            session['role'] = user.role
+            session['bank_id'] = user.bank_id
+            flash("Login successful.")
+            return redirect(url_for("admin_dashboard"))
+        else:
+            flash("Invalid credentials.")
+    return render_template("admin_login.html")
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.clear()
+    flash("Logged out.")
+    return redirect(url_for("admin_login"))
+
+# ------------------------
+# Admin Dashboard (placeholder)
+# ------------------------
+@app.route("/admin/dashboard")
+def admin_dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for("admin_login"))
+
+    user = User.query.get(session['user_id'])
+    bank = Bank.query.get(user.bank_id) if user.bank_id else None
+    return render_template("admin_dashboard.html", user=user, bank=bank)
+
+# ------------------------
+# Loan Application
+# ------------------------
 @app.route("/bank/<int:bank_id>/apply", methods=["GET", "POST"])
 def submit_loan_application(bank_id):
     bank = Bank.query.get_or_404(bank_id)
@@ -58,3 +102,21 @@ def submit_loan_application(bank_id):
         return redirect(url_for("submit_loan_application", bank_id=bank_id))
 
     return render_template("loan_form.html", bank=bank, loan_types=loan_types)
+
+# ------------------------
+# Home Page (optional)
+# ------------------------
+@app.route("/")
+def home():
+    return "Welcome to the Loan & KYC App. Please choose a bank or login as Admin."
+
+# ------------------------
+# CLI for DB Init
+# ------------------------
+@app.cli.command("init-db")
+def init_db():
+    db.create_all()
+    print("Database initialized.")
+
+            
+                    
