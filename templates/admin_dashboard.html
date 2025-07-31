@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    .section { border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; }
+    .section h3 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h2>Welcome, {{ user.email }} ({{ user.role }})</h2>
+  {% if bank %}
+    <h3>Managing: {{ bank.name }}</h3>
+  {% elif user.role == 'superadmin' %}
+    <p>You are SuperAdmin. Select a bank to manage:</p>
+    <form method="GET" action="{{ url_for('admin_dashboard') }}">
+      <select name="bank_id" onchange="this.form.submit()">
+        {% for b in all_banks %}
+          <option value="{{ b.id }}">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  {% endif %}
+
+  <a href="{{ url_for('admin_logout') }}">Logout</a>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if bank %}
+    <!-- Bank Config -->
+    <div class="section">
+      <h3>Edit Bank Info</h3>
+      <form method="POST" action="{{ url_for('edit_bank', bank_id=bank.id) }}">
+        <label>Name:</label><input type="text" name="name" value="{{ bank.name }}"><br>
+        <label>Address:</label><input type="text" name="address" value="{{ bank.address }}"><br>
+        <label>Logo URL:</label><input type="text" name="logo" value="{{ bank.logo }}"><br>
+        <label>Theme Color:</label><input type="text" name="theme_color" value="{{ bank.theme_color }}"><br>
+        <button type="submit">Save Bank Info</button>
+      </form>
+    </div>
+
+    <!-- Loan Types -->
+    <div class="section">
+      <h3>Loan Types</h3>
+      {% for loan in bank.loan_types %}
+        <form method="POST" action="{{ url_for('edit_loan_type', loan_id=loan.id) }}">
+          <strong>{{ loan.name }}</strong><br>
+          Term (months): <input name="term_months" value="{{ loan.term_months }}"><br>
+          Min ₹: <input name="min_amount" value="{{ loan.min_amount }}"><br>
+          Max ₹: <input name="max_amount" value="{{ loan.max_amount }}"><br>
+          Rate %: <input name="interest_rate" value="{{ loan.interest_rate }}"><br>
+          <button type="submit">Update</button>
+        </form>
+        <form method="POST" action="{{ url_for('delete_loan_type', loan_id=loan.id) }}" style="margin-top:-10px;">
+          <button type="submit" onclick="return confirm('Delete this loan type?')">Delete</button>
+        </form>
+        <hr>
+      {% endfor %}
+
+      <h4>Add New Loan Type</h4>
+      <form method="POST" action="{{ url_for('add_loan_type', bank_id=bank.id) }}">
+        Name: <input name="name"><br>
+        Term (months): <input name="term_months"><br>
+        Min ₹: <input name="min_amount"><br>
+        Max ₹: <input name="max_amount"><br>
+        Rate %: <input name="interest_rate"><br>
+        <button type="submit">Add Loan Type</button>
+      </form>
+    </div>
+
+    <!-- KYC for Loan Types -->
+    <div class="section">
+      <h3>KYC Documents</h3>
+      {% for loan in bank.loan_types %}
+        <strong>{{ loan.name }}</strong>
+        <ul>
+          {% for doc in loan.kyc_requirements %}
+            <li>{{ doc.document_name }} {% if doc.required %}(Required){% endif %}</li>
+          {% endfor %}
+        </ul>
+        <form method="POST" action="{{ url_for('add_kyc_doc', loan_id=loan.id) }}">
+          Add KYC: <input name="document_name" placeholder="e.g. Aadhaar"><br>
+          Required? <select name="required"><option value="1">Yes</option><option value="0">No</option></select><br>
+          <button type="submit">Add</button>
+        </form>
+        <hr>
+      {% endfor %}
+    </div>
+  {% endif %}
+</body>
+</html>
